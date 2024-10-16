@@ -1,6 +1,27 @@
+"use client";
 import Image from "next/image";
+// import { pipeline, AutoTokenizer } from "@huggingface/transformers";
 
-export default function Home() {
+export default async function Home() {
+
+//   const generator = await pipeline("text-generation", "onnx-community/Llama-3.2-1B-Instruct", {
+//     dtype: 'fp32',
+//     device: 'webgpu',
+//   });
+
+// // Define the list of messages
+//   const messages = [
+//     { role: "system", content: "You are a helpful assistant." },
+//     { role: "user", content: "Tell me a joke." },
+//   ];
+
+//   // Generate a response
+
+//   const output = await generator(messages, { max_new_tokens: 128 });
+//   console.log(output[0].generated_text.at(-1).content);
+
+  console.log(new URL("./", import.meta.url).href);
+
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
