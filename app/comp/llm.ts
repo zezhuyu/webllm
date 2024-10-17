@@ -1,155 +1,121 @@
-// import {
-//     SimpleChatModel,
-//     type BaseChatModelParams,
-//   } from "@langchain/core/language_models/chat_models";
-//   import type { BaseLanguageModelCallOptions } from "@langchain/core/language_models/base";
-//   import { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
-//   import { BaseMessage, AIMessageChunk } from "@langchain/core/messages";
-//   import { ChatGenerationChunk } from "@langchain/core/outputs";
-//   import { pipeline, AutoTokenizer } from "@huggingface/transformers";
+"use client";
+import {
+    SimpleChatModel,
+    type BaseChatModelParams,
+  } from "@langchain/core/language_models/chat_models";
+  import { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
+  import { AIMessageChunk, type BaseMessage } from "@langchain/core/messages";
+  import { ChatGenerationChunk } from "@langchain/core/outputs";
+
+  import { pipeline, env, TextGenerationPipeline, AutoTokenizer} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers/dist/transformers.min.js";
+
+  class addToken {
+
+    setTokens: (tokens: string[]) => void;
+    setToken: (token: string) => void;
+    tokenizer: AutoTokenizer;
+    isEnd: boolean = false;
+
+    constructor({setTokens, setToken, tokenizer}: {setTokens: (tokens: string[]) => void; setToken: (token: string) => void; tokenizer: AutoTokenizer}) {
+        this.setTokens = setTokens;
+        this.setToken = setToken;
+        this.tokenizer = tokenizer;
+        this.isEnd = false;
+    }
+    
+    put(list: string[]) {
+        this.isEnd = false;
+        this.setTokens((prevToken: string) => prevToken + this.tokenizer.decode(list[0], { skip_special_tokens: true }));
+        this.setToken(this.tokenizer.decode(list[0], { skip_special_tokens: true }));
+    }
+    
+    end() {
+        this.isEnd = true;
+    }
+
+    checkEnd() {
+        return this.isEnd;
+    }
+  }
+
+  export interface LLMInput extends BaseChatModelParams {
+    tokens: string[];
+    setToken: (token: string) => void;
+    token: string;
+    setTokens: (tokens: string[]) => void;
+    n: number;
+    model: string;
+    pipeConfig: any;
+    pipe: TextGenerationPipeline;
+  }
   
-//   export interface WebLLMInputs extends BaseChatModelParams {
-//     appConfig?: webllm.AppConfig;
-//     chatOptions?: webllm.ChatOptions;
-//     temperature?: number;
-//     model: string;
-//   }
+  export class LLM extends SimpleChatModel {
+    n: number;
+    model: string;
+    pipeConfig: any;
+    pipe: TextGenerationPipeline;
+    tokens: string[];
+    setTokens: (tokens: string[]) => void;
+    token: string;
+    setToken: (token: string) => void;
+    addToken!: addToken;
   
-//   export interface WebLLMCallOptions extends BaseLanguageModelCallOptions {}
+    constructor(fields: LLMInput) {
+        super(fields);
+        this.n = fields.n;
+        this.model = fields.model ?? "Llama-3.2-1B-Instruct";
+        this.pipeConfig = fields.pipeConfig;
+        this.tokens = fields.tokens;
+        this.setTokens = fields.setTokens;
+        this.token = fields.token;
+        this.setToken = fields.setToken;
+    }
   
-//   /**
-//    * To use this model you need to have the `@mlc-ai/web-llm` module installed.
-//    * This can be installed using `npm install -S @mlc-ai/web-llm`.
-//    *
-//    * You can see a list of available model records here:
-//    * https://github.com/mlc-ai/web-llm/blob/main/src/config.ts
-//    * @example
-//    * ```typescript
-//    * // Initialize the ChatWebLLM model with the model record.
-//    * const model = new ChatWebLLM({
-//    *   model: "Phi-3-mini-4k-instruct-q4f16_1-MLC",
-//    *   chatOptions: {
-//    *     temperature: 0.5,
-//    *   },
-//    * });
-//    *
-//    * // Call the model with a message and await the response.
-//    * const response = await model.invoke([
-//    *   new HumanMessage({ content: "My name is John." }),
-//    * ]);
-//    * ```
-//    */
-//   export class ChatWebLLM extends SimpleChatModel<WebLLMCallOptions> {
-//     static inputs: WebLLMInputs;
+    _llmType() {
+      return "LLM";
+    }
+
+    async init() {
+        env.localModelPath = './models';
+        env.allowLocalModels = true;
+        env.allowRemoteModels = true; 
+        this.pipe = await pipeline("text-generation", this.model, this.pipeConfig);
+        this.addToken = new addToken({ setTokens: this.setTokens, setToken: this.setToken, tokenizer: this.pipe.tokenizer });
+    }
   
-//     protected engine: webllm.MLCEngine;
+    async _call(messages: BaseMessage[], options: this["ParsedCallOptions"], runManager?: CallbackManagerForLLMRun): Promise<string> {
+      if (!messages.length) {
+        throw new Error("No messages provided.");
+      }
+      // Pass `runManager?.getChild()` when invoking internal runnables to enable tracing
+      // await subRunnable.invoke(params, runManager?.getChild());
+      if (typeof messages[0].content !== "string") {
+        throw new Error("Multimodal messages are not supported.");
+      }
+      const output = await this.pipe(messages[0].content, {max_new_tokens: 1024, streamer: this.addToken})
+      return output[0].generated_text;
+    }
   
-//     appConfig?: webllm.AppConfig;
-  
-//     chatOptions?: webllm.ChatOptions;
-  
-//     temperature?: number;
-  
-//     model: string;
-  
-//     static lc_name() {
-//       return "ChatWebLLM";
-//     }
-  
-//     constructor(inputs: WebLLMInputs) {
-//       super(inputs);
-//       this.appConfig = inputs.appConfig;
-//       this.chatOptions = inputs.chatOptions;
-//       this.model = inputs.model;
-//       this.temperature = inputs.temperature;
-//       this.engine = new webllm.MLCEngine({
-//         appConfig: this.appConfig,
-//       });
-//     }
-  
-//     _llmType() {
-//       return "web-llm";
-//     }
-  
-//     async initialize(progressCallback?: webllm.InitProgressCallback) {
-//       if (progressCallback !== undefined) {
-//         this.engine.setInitProgressCallback(progressCallback);
-//       }
-//       await this.reload(this.model, this.chatOptions);
-//     }
-  
-//     async reload(modelId: string, newChatOpts?: webllm.ChatOptions) {
-//       await this.engine.reload(modelId, newChatOpts);
-//     }
-  
-//     async *_streamResponseChunks(
-//       messages: BaseMessage[],
-//       options: this["ParsedCallOptions"],
-//       runManager?: CallbackManagerForLLMRun
-//     ): AsyncGenerator<ChatGenerationChunk> {
-//       const messagesInput: ChatCompletionMessageParam[] = messages.map(
-//         (message) => {
-//           if (typeof message.content !== "string") {
-//             throw new Error(
-//               "ChatWebLLM does not support non-string message content in sessions."
-//             );
-//           }
-//           const langChainType = message._getType();
-//           let role;
-//           if (langChainType === "ai") {
-//             role = "assistant" as const;
-//           } else if (langChainType === "human") {
-//             role = "user" as const;
-//           } else if (langChainType === "system") {
-//             role = "system" as const;
-//           } else {
-//             throw new Error(
-//               "Function, tool, and generic messages are not supported."
-//             );
-//           }
-//           return {
-//             role,
-//             content: message.content,
-//           };
-//         }
-//       );
-  
-//       const stream = await this.engine.chat.completions.create({
-//         stream: true,
-//         messages: messagesInput,
-//         stop: options.stop,
-//         logprobs: true,
-//       });
-//       for await (const chunk of stream) {
-//         // Last chunk has undefined content
-//         const text = chunk.choices[0].delta.content ?? "";
-//         yield new ChatGenerationChunk({
-//           text,
-//           message: new AIMessageChunk({
-//             content: text,
-//             additional_kwargs: {
-//               logprobs: chunk.choices[0].logprobs,
-//               finish_reason: chunk.choices[0].finish_reason,
-//             },
-//           }),
-//         });
-//         await runManager?.handleLLMNewToken(text);
-//       }
-//     }
-  
-//     async _call(
-//       messages: BaseMessage[],
-//       options: this["ParsedCallOptions"],
-//       runManager?: CallbackManagerForLLMRun
-//     ): Promise<string> {
-//       const chunks = [];
-//       for await (const chunk of this._streamResponseChunks(
-//         messages,
-//         options,
-//         runManager
-//       )) {
-//         chunks.push(chunk.text);
-//       }
-//       return chunks.join("");
-//     }
-//   }
+    async *_streamResponseChunks(messages: BaseMessage[], options: this["ParsedCallOptions"], runManager?: CallbackManagerForLLMRun): AsyncGenerator<ChatGenerationChunk> {
+      if (!messages.length) {
+        throw new Error("No messages provided.");
+      }
+      if (typeof messages[0].content !== "string") {
+        throw new Error("Multimodal messages are not supported.");
+      }
+      // Pass `runManager?.getChild()` when invoking internal runnables to enable tracing
+      // await subRunnable.invoke(params, runManager?.getChild());
+      
+      const output = await this.pipe(messages[0].content, {max_new_tokens: 1024, streamer: this.addToken})
+      
+      while (!this.addToken.checkEnd()) {
+        yield new ChatGenerationChunk({
+            message: new AIMessageChunk({
+              content: this.token,
+            }),
+            text: this.token,
+          });
+        await runManager?.handleLLMNewToken(this.token);
+      }
+    }
+  }

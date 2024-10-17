@@ -31,7 +31,7 @@
     <body>
         <script type="module">
             import { AutoModelForCausalLM, AutoTokenizer, pipeline, env, TextGenerationPipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers';
-            
+
             const pipeConfig = {
                 dtype: 'q4f16',
                 progress_callback: (p) => {
@@ -64,6 +64,7 @@
                 class TokenList {
                     constructor() {
                         this.element = document.getElementById('resultDisplay');
+                        this.element.textContent = "";
                     }
 
                     put(list) {
@@ -74,13 +75,12 @@
                         this.element = null;
                     }
                 }
-                const tokenlist = new TokenList();
                 window.search = function search() {
                     const query = document.querySelector('.search-input').value;
                     (async () => {
                         const output = await generator(query, { 
                             max_new_tokens: 1024,
-                            streamer: tokenlist,
+                            streamer: new TokenList(),
                         });
                     })();
                 }
