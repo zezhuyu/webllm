@@ -40,7 +40,7 @@ try {
     env.allowLocalModels = true;
     env.allowRemoteModels = false; 
     const tokenizer = await AutoTokenizer.from_pretrained( 
-        "onnx-community/Llama-3.2-1B-Instruct",
+        "Llama-3.2-1B-Instruct",
         {
             dtype: 'q4f16',
             device: 'webgpu',
@@ -64,7 +64,7 @@ try {
         "text-generation", 
         // model,
         // tokenizer: tokenizer,
-        "onnx-community/Llama-3.2-1B-Instruct", 
+        "Llama-3.2-1B-Instruct", 
         {
             dtype: 'q4f16',
             device: 'webgpu',

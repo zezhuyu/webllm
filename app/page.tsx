@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState, useRef, SetStateAction } from "react";
-import { Progress } from 'rsuite';
 import { AutoTokenizer, pipeline, env, TextGenerationPipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers/dist/transformers.min.js';
 // import { pipeline, AutoTokenizer } from "@huggingface/transformers";
 
@@ -10,64 +9,63 @@ export default function Home() {
   const [token, setToken] = useState<string>("");
   const [tokenizer, setTokenizer] = useState<AutoTokenizer>("");
   const [pipe, setPipe] = useState<TextGenerationPipeline>("");
-  const [progress, setProgress] = useState<number>(0);
+  const [progress, setProgress] = useState<number>(100);
   const [isready, setReady] = useState<boolean>(false);
   const [question, setQuestion] = useState<string>("");
+  const [e, setE] = useState<string>("");
+  const [device, setDevice] = useState<string>("cpu");
+  const [memory, setMemory] = useState<string>("0");
+  const hasInitialized = useRef(false);
 
-  const inputRef = useRef(null);
-
-  var i = 0;
+  const pipeConfig = {
+    dtype: 'q4f16',
+    progress_callback: (p: { status: string; progress: SetStateAction<number>; }) => {
+      if (p.status === "initiate"){
+        setProgress(0);
+        setReady(false);
+      }else if (p.status === "progress"){
+        setProgress(Math.floor(Number(p.progress)));
+        // setReady(false);
+      }else if (p.status === "ready"){
+        setProgress(100);
+        setReady(true);
+      }
+    }
+  }
   useEffect(() => {
-    if (i > 0){
+    if (hasInitialized.current) {
       return;
     }
-    i++;
-    console.log((navigator as any).gpu);
+    hasInitialized.current = true;
+
+    if((navigator as any).deviceMemory){
+      setMemory(navigator .deviceMemory);
+    }
+
+    if((navigator as any).gpu){
+      pipeConfig.device = 'webgpu';
+      setDevice('webgpu');
+    }
+    
     async function init(){
       try {
         env.localModelPath = './models';
+        // env.backends.onnx.wasm.wasmPaths = './wasm/ort-wasm-simd-threaded.jsep.wasm';
         env.allowLocalModels = true;
         env.allowRemoteModels = false; 
-        const tokeniz = await AutoTokenizer.from_pretrained("Llama-3.2-1B-Instruct");
-        const pipel = await pipeline(
-          "text-generation",
-          "Llama-3.2-1B-Instruct", 
-          {
-              dtype: 'q4f16',
-              device: 'webgpu',
-              progress_callback: (p: { status: string; progress: SetStateAction<number>; }) => {
-                if (p.status === "initiate"){
-                  setProgress(0);
-                  // setReady(false);
-                }else if (p.status === "progress"){
-                  setProgress(Math.floor(Number(p.progress)));
-                  // setReady(false);
-                }else if (p.status === "ready"){
-                  // setProgress(100);
-                  // setReady(true);
-                }
-              }
-          }
-        );
-        setProgress(100);
-        setReady(true);
-        setTokenizer(tokeniz);
+        const tokeni = await AutoTokenizer.from_pretrained("Llama-3.2-1B-Instruct");
+        const pipel = await pipeline("text-generation", "Llama-3.2-1B-Instruct", pipeConfig);
+        setTokenizer(tokeni);
         setPipe(pipel);
+        return;
       } catch (error) {
-        console.log("Error accessing WebGPU:", error);
+        console.log(error);
+        setE(error.message);
       }
+      
     };
-  
     init();
   }, []);
-
-  useEffect(() => {
-
-    console.log("Progress: ", progress);
-    if (isready) {
-        console.log("The model is ready!");
-    }
-}, [progress, isready]);
 
   class addToken {
 
@@ -77,8 +75,8 @@ export default function Home() {
     }
     
     put(list: string[]) {
-      setTokens(pipe.tokenizer.decode(list[0], {skip_special_tokens: true,}));
-      setToken(token + pipe.tokenizer.decode([list[list.length - 1]], {skip_special_tokens: true,}));
+      setTokens(tokenizer.decode(list[0], {skip_special_tokens: true,}));
+      setToken(token + tokenizer.decode([list[list.length - 1]], {skip_special_tokens: true,}));
       // console.log(tokenizer.decode(list[0], {skip_special_tokens: true,}))
     }
     
@@ -91,15 +89,23 @@ export default function Home() {
   const handleSubmit = async (event: {
     target: { question: any; }; preventDefault: () => void; 
 }) => {
-    event.preventDefault();
-    if (pipe !== null && pipe !== "" && question !== "") {
-      console.log(question);
-      const output = await pipe(question, { 
-        max_new_tokens: 1024,
-        streamer: new addToken(),
-     })
-     console.log(output[0].generated_text);
+    try {
+      event.preventDefault();
+      if (pipe !== null && pipe !== "" && typeof pipe === "function" && question !== "") {
+        console.log(pipe);
+        const output = await pipe(question, { 
+          max_new_tokens: 1024,
+          streamer: new addToken(),
+       })
+       console.log(output[0].generated_text);
+      }
+      // setPipe(pipel);
+      return ;
+    } catch (error) {
+      console.log( error);
+      setE(error.message);
     }
+    
   };
 
   return (
@@ -118,10 +124,15 @@ export default function Home() {
             </div>
         </form>
         <div className="w-full max-w-xl mx-auto">
+          <span className="text-sm text-gray-900 dark:text-white"> Running on: {device} </span>
+          <br />
+          <span className="text-sm text-gray-900 dark:text-white"> Device memory: {memory} GB </span>
+          <br />
           <span className="text-sm text-gray-900 dark:text-white"> Model Loading State: { isready ? `Done` : `${progress} %` } </span>
           <br />
           <span className="text-sm text-gray-900 dark:text-white"> Model: Llama-3.2-1B-Instruct is ready: { isready.toString() } </span>
-          {/* {progress > 0 && (progress < 100 ? <Progress.Line percent={progress} status="active"/> : <Progress.Line percent={progress } status="success" />)} */}
+          <br />
+          {e !== "" ? <span className="text-sm text-red-500 dark:text-red-400"> {e} </span> : ""}
         </div>
         <div className="w-full max-w-xl mx-auto">
             <div className="flex flex-wrap gap-2">
