@@ -1,0 +1,6 @@
+{
+  "https://cdn.jsdelivr.net/npm/@huggingface/transformers": { "integrity": "sha512-g1eME5COlnpeljFI0p2ZvvQtju5O9K8QcZ7JauGPe43iF2R4rj2IUDigcaN8B0+eFBZIALS+ug0LESqkiqQiIQ==", "contentType": "application/javascript; charset=utf-8" },
+  "https://cdn.jsdelivr.net/npm/@huggingface/transformers/dist/": { "integrity": "sha512-4us3A5D//Exrft/eVrqFZWN1fz1rXmbCDwCMezmz0dZyJ1kWW15u8A7A3IfmjeRi0a09xyQB9k4egscWc1+ywQ==", "contentType": "text/html; charset=utf-8" },
+  "https://cdn.jsdelivr.net/npm/@huggingface/transformers/dist/transformers.min.js": { "integrity": "sha512-g1eME5COlnpeljFI0p2ZvvQtju5O9K8QcZ7JauGPe43iF2R4rj2IUDigcaN8B0+eFBZIALS+ug0LESqkiqQiIQ==", "contentType": "application/javascript; charset=utf-8" },
+  "version": 1
+}

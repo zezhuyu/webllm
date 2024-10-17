@@ -1,4 +1,8 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+    experimental: {
+        urlImports: ['https://cdn.jsdelivr.net'],
+      },
+};
 
 export default nextConfig;
