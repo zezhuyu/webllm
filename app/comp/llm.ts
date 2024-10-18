@@ -76,9 +76,9 @@ import {
     }
 
     async init() {
-        env.localModelPath = './models';
-        env.allowLocalModels = true;
-        env.allowRemoteModels = true; 
+        // env.localModelPath = './models';
+        // env.allowLocalModels = true;
+        // env.allowRemoteModels = true; 
         this.pipe = await pipeline("text-generation", this.model, this.pipeConfig);
         this.addToken = new addToken({ setTokens: this.setTokens, setToken: this.setToken, tokenizer: this.pipe.tokenizer });
     }
