@@ -20,7 +20,7 @@ export default function Chain() {
     const embedding = useRef<HuggingFaceTransformersEmbeddings>();
 
     const embeddingConfig = {
-        dtype: 'fp32'
+        dtype: 'fp16'
     }
 
     const pipeConfig = {
@@ -59,7 +59,7 @@ export default function Chain() {
           try {
             llm.current = new LLM({ 
                 n: 4,
-                model: "Llama-3.2-1B-Instruct",
+                model: "onnx-community/Llama-3.2-1B-Instruct",
                 pipeConfig: pipeConfig,
                 setTokens: setTokens,
                 setToken: setToken,
@@ -68,7 +68,7 @@ export default function Chain() {
             });
             await llm.current.init();
             embedding.current = new HuggingFaceTransformersEmbeddings({
-                modelName: "Xenova/all-MiniLM-L6-v2",
+                modelName: "Xenova/bge-base-en-v1.5",
                 pretrainedOptions: embeddingConfig,
             });
             await embedding.current.init();
