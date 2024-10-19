@@ -7,10 +7,10 @@ import { HuggingFaceTransformersEmbeddings } from "./comp/embedding";
 export default function Chain() {
     const [tokens, setTokens] = useState<string>("");
     const [token, setToken] = useState<string>("");
-    const [allTokens, setAllTokens] = useState<string>("");
     const [progress, setProgress] = useState<number>(100);
     const [isready, setReady] = useState<boolean>(false);
     const [question, setQuestion] = useState<string>("");
+    const [input, setInput] = useState<string>("");
     const [e, setE] = useState<string>("");
     const [device, setDevice] = useState<string>("cpu");
     const [memory, setMemory] = useState<string>("0");
@@ -46,7 +46,7 @@ export default function Chain() {
         hasInitialized.current = true;
     
         if((navigator as any).deviceMemory){
-          setMemory(navigator .deviceMemory);
+          setMemory((navigator as any).deviceMemory);
         }
     
         if((navigator as any).gpu){
@@ -72,31 +72,45 @@ export default function Chain() {
                 pretrainedOptions: embeddingConfig,
             });
             await embedding.current.init();
-            const prompt = ChatPromptTemplate.fromTemplate("Tell me a {adjective} joke");
+            const prompt = ChatPromptTemplate.fromTemplate(`
+              ## System:
+              Below is user a question.
+              Provide detailed answers and explain the reasons, keep the response to the point, avoiding unnecessary information.
+              If you don't know the answer just say I don't know.
+              Don't create infinitely long response.
+              Don't answer the same thing over and over again.
+              
+              ## Question:
+              {input}
+            `);
             chain.current = prompt.pipe(llm.current);
             return;
           } catch (error) {
             console.log(error);
-            setE(error.message);
+            setE((error as any).message);
           }
           
         };
         init();
       }, []);
 
-      const handleSubmit = async (event: {target: { question: any; }; preventDefault: () => void; }) => {
+      const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (event) => {
         try {
           event.preventDefault();
+          setInput(question);
+          setTokens("");
+          setToken("");
           if (question !== "") {
-            const response = await chain.current.invoke({ adjective: "funny" });
+            llm.current?.reset();
+            const response = await chain.current.invoke({ input: question });
             // console.log(response.content);
-            const result = await embedding.current.embedQuery(response.content);
+            const result = embedding.current && await embedding.current.embedQuery(response.content);
             // console.log(result);
           }
           return ;
         } catch (error) {
-          console.log( error);
-          setE(error.message);
+          console.log(error);
+          setE((error as any).message);
         }
         
       };
@@ -126,11 +140,16 @@ export default function Chain() {
               <br />
               {e !== "" ? <span className="text-sm text-red-500 dark:text-red-400"> {e} </span> : ""}
             </div>
-            {tokens !== "" && <div className="w-full max-w-xl mx-auto">
+            {input !== "" && <div className="w-full max-w-xl mx-auto">
+                <div className="flex flex-wrap gap-2" style={{ whiteSpace: "pre-wrap" }}>
+                    <span className="px-2 py-1 text-sm text-gray-900 bg-gray-100 rounded-lg dark:text-white dark:bg-gray-800">{input}</span>
+                </div>
+            </div>}
+            {tokens !== "" && <div className="w-full max-w-xl mx-auto" style={{ whiteSpace: "pre-wrap" }}>
                 <div className="flex flex-wrap gap-2">
                     <span className="px-2 py-1 text-sm text-gray-900 bg-gray-100 rounded-lg dark:text-white dark:bg-gray-800">{tokens}</span>
                 </div>
-            </div>    }
+            </div>}
           </main>
           {/* <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
           </footer> */}
